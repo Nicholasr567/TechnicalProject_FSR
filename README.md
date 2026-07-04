@@ -21,6 +21,7 @@ This repository implements:
 - [Installation](#installation)
 - [How to Run](#how-to-run)
 - [Simulation Modes](#simulation-modes)
+- [Demo](#demo)
 - [Results](#results)
 - [Authors](#authors)
 
@@ -115,6 +116,14 @@ cd car-like-robot-navigation
 | Euler | Forward Euler odometry |
 | RK2 | Second-order odometry |
 | EKF | Landmark-based localization |
+
+---
+
+## Demo
+<p align="center"> <a href="docs/full_simulation.mp4"> <img src="docs/demo.gif" alt="Simulation Demo" width="700"/> </a> </p>
+
+<p align="center"> Click the preview to watch the full simulation. </p>
+
 
 ---
 
