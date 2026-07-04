@@ -1,2 +1,140 @@
-# TechnicalProject_FSR
-Final Project for Field &amp; Service Robotics exam
+# Car-Like Robot Path Planning, Tracking and Localization
+
+A MATLAB/Simulink project for **path planning**, **trajectory generation**, **feedback linearization control**, and **state estimation** for a nonholonomic car-like robot.
+
+This repository implements:
+- Graph-based planning using motion primitives inspired by Reeds-Shepp curves
+- Shortest-path search using Dijkstra
+- Trajectory smoothing and velocity profiling
+- Input/Output Feedback Linearization
+- Odometric localization (Euler and RK2)
+- Extended Kalman Filter (EKF)
+
+---
+
+## Table of Contents
+
+- [Overview](#overview)
+- [System Architecture](#system-architecture)
+- [Project Structure](#project-structure)
+- [Requirements](#requirements)
+- [Installation](#installation)
+- [How to Run](#how-to-run)
+- [Simulation Modes](#simulation-modes)
+- [Results](#results)
+- [Authors](#authors)
+
+---
+
+## Overview
+
+This project solves autonomous navigation for a car-like robot over a map extracted from Google Maps.
+
+Pipeline:
+
+`Map → Graph Generation → Path Search → Trajectory Generation → Controller → Localization → Analysis`
+
+---
+
+## System Architecture
+
+### Path Planning
+- Straight, left-turn, right-turn primitives
+- Occupancy grid collision checking
+- Iterative graph expansion
+
+### Path Optimization
+- Dijkstra shortest path
+
+### Trajectory Generation
+- Arc-length parametrization
+- Curvature estimation
+- Adaptive velocity profiling
+- Gaussian smoothing
+- Uniform scaling
+
+### Control
+- Virtual point mapping
+- I/O feedback linearization
+- Decoupled tracking
+- Goal damping logic
+
+### Localization
+- Ideal feedback
+- Euler odometry
+- RK2 odometry
+- EKF with landmarks
+
+---
+
+## Project Structure
+
+```text
+.
+├── main.m
+├── CarLike_Robot.slx
+├── images/
+└── README.md
+```
+
+---
+
+## Requirements
+
+- MATLAB
+- Simulink
+- Image Processing Toolbox
+
+---
+
+## Installation
+
+```bash
+git clone https://github.com/yourusername/car-like-robot-navigation.git
+cd car-like-robot-navigation
+```
+
+---
+
+## How to Run
+
+1. Run `main.m`
+2. Select start and goal on the map
+3. Generate graph and path
+4. Open `CarLike_Robot.slx`
+5. Select localization mode
+6. Run simulation
+
+---
+
+## Simulation Modes
+
+| Mode | Description |
+|---|---|
+| Nominal | Ideal state feedback |
+| Euler | Forward Euler odometry |
+| RK2 | Second-order odometry |
+| EKF | Landmark-based localization |
+
+---
+
+## Results
+
+The framework automatically generates:
+
+- State tracking errors
+- Control signals
+- Euclidean tracking error
+- Trajectory comparison
+
+Saved inside:
+
+```text
+images/<method>/
+```
+
+---
+
+## Authors
+
+Giuseppe Arena & Nicholas Ruggiero
