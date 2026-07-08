@@ -1,68 +1,60 @@
-%% Reeds-Shepp curves and Path Tracking Simulation
-% The following code uses the RSC method in order to generate a graph consisting of nodes along the map; 
-% using motion primitives, which allow our car-like to move forward, have a right or left curve; 
-% in order to avoid the presence of cusps along the way.
-% Then using the Dijkstra algortim finds the path to go from a starting point to an end point in the minimum time.
-% Finally highlight it in magenta on the map.
-% Calculates the reference path, prompts the user for localization mode, waits for manual Simulink run, and plots the results.
-
+%% CAR-LIKE ROBOT: Planning, Control & Localization
 clear; clc; close all;
 
-%% Definition of parameters
+%% Parameters
 global length_step radius_curve num_iterations points counter occupancy_matrix map sample_points connections curve_points legend_flag
 l = 0.6;
 Delta = 0.2;
 Ts = 0.01;
 
-%% Elaborazione Mappa da Google Maps
-% Carica l'immagine
+%% Map Processing
 addpath(genpath("Images"));
 img = imread('mia_mappa_ruotata.png'); 
 
-% Se immagine RGB si converte in scala di grigi
+% Image conversion from RGB to grey
 if size(img, 3) == 3
     img_gray = rgb2gray(img);
 else
     img_gray = img;
 end
 
-% Binarizzazione: immagine in una matrice logica (0 e 1)
-% Le strade chiare diventano 1 (spazio libero), gli edifici scuri 0 (ostacoli)
+% Binarization 
+% Roads =1, Obstacles=0
 BW = imbinarize(img_gray);
 
-% per invertire i colori:
+% To invert colors in case the map load had roads darker than obstacles
 BW = ~BW;
 
-% Trasponiamo la matrice per allinearla al sistema di coordinate (x,y)
+% Transponse matrix to align it at the coordinates (x,y)
 map = BW'; 
 
 length_step = 7;            % Length of the step forward
-radius_curve = 7;           % Bending radius for left and right curves
+radius_curve = 7;           % Bending radius for curves
 num_iterations = 500;       % Number of iterations
 
 % =========================================================================
-% LOOP PRINCIPALE:scelta nuovi punti sulla mappa
+% MAIN LOOP
 % =========================================================================
 run_full_simulation = true;
 while run_full_simulation
 
     %% Start and goal point coordinates for the maps
-    %  Selezione manuale dei punti
+    %  Manual Point Selection
     figure('Name', 'Map Selection'); 
     imshow(map'); 
     title('\fontsize{14}\color{red}Click START point, then GOAL point');
     [x_click, y_click] = ginput(2);
-    close; % Chiude la figura dopo aver cliccato
+    close;
 
-    % Assegna i valori cliccati alle variabili reali
+    % Assign clicked values to te variables
     Qs = [round(x_click(1)), round(y_click(1))];
     Qg = [round(x_click(2)), round(y_click(2))];
 
-    % Stampa a video 
+    % Print Start and Goal Points 
     disp(['START point set to: ', num2str(Qs)]);
     disp(['GOAL point set to: ', num2str(Qg)]);
 
-    % Controllo di sicurezza
+    % Check obstacles
     if map(Qs(1), Qs(2)) == 0
         error('ERROR: START point is on an obstacle! Restart and click on a white area.');
     end
@@ -70,7 +62,7 @@ while run_full_simulation
         error('ERROR: GOAL point is on an obstacle! Restart and click on a white area.');
     end
 
-    %% Variable initialization (Reset for each new simulation)
+    % Variable initialization (Reset for each new simulation)
     legend_flag = 1;           
     curve_points = struct('start_node', [], 'end_node', [], 'points', {});
     sample_points = [];
@@ -91,7 +83,7 @@ while run_full_simulation
     % Queue for points to explore
     queue = [Qs, 0, 1];                         % [x, y, angle, iteration]
 
-    %% Plot initialization
+    % Plot initialization
     figure('Name', 'Path Planning');
     imshow(map');
     hold on;
@@ -99,7 +91,7 @@ while run_full_simulation
     plot(Qs(1), Qs(2), 'ro', 'MarkerSize', 10, 'LineWidth', 1.5);                      % Start point (red)
     plot(Qg(1), Qg(2), 'go', 'MarkerSize', 10, 'LineWidth', 1.5);                      % Goal point (green)
 
-    %% Initiation of proceedings from start point through which it constructs the graph using the RSC method.
+    %% Graph Generation via RSC.
     disp('Searching for path, please wait...');
     while ~isempty(queue)
         % Extract the current point from the queue
@@ -114,31 +106,31 @@ while run_full_simulation
     end
     disp('Graph generated.');
 
-    %% notes on the plot figure
+    % notes on the plot figure
     title('\textbf{Primitive Reed-Shepp Curves Iterative}', 'Interpreter', 'latex', 'FontSize', 14);
     xlabel('x [m]', 'Interpreter', 'latex');
     ylabel('y [m]', 'Interpreter', 'latex');
     axis equal;
     grid on;
 
-    %% Calculates the adjacency matrix, in input the nodes and a vector indicating the connections between the nodes
+    % Calculates the adjacency matrix, in input the nodes and a vector indicating the connections between the nodes
     sample_points = [Qs; sample_points];
     adjacency_matrix = create_adjacency_matrix(sample_points, connections);
 
-    %% Find the shortest path using Dijkstra from a start point to an end point
+    %% Optimal Path Search via Dijkstra
     disp('Running Dijkstra algorithm...');
     shortest_path = dijkstra(adjacency_matrix, sample_points, Qs, Qg);
     disp('Path found!');
 
-    %% Plots the previously obtained path
+    % Plots the previously obtained path
     collected_points = plot_path(shortest_path, sample_points, 'm');
 
-    %% From the smooth path it calculates the coordinates to be given input to the controller
+    %% Reference Trajectory generation
     [xd, yd, thetad, phid, vd, omegad, q0, T_max, k, landmarks, v_max_ref, omega_max_ref] = des_trajectory(collected_points);
 
     q_goal_finale = [xd.Data(end); yd.Data(end); thetad.Data(end)];
 
-    % --- PUNTO FINALE TRASFORMATO (y_1d_goal, y_2d_goal) ---
+    % --- Final Point (y_1d_goal, y_2d_goal) ---
     xd_end    = xd.Data(end);
     yd_end    = yd.Data(end);
     thetad_end = thetad.Data(end);
@@ -147,7 +139,7 @@ while run_full_simulation
     y_1d_goal = xd_end + l*cos(thetad_end) + Delta*cos(thetad_end + phid_end);
     y_2d_goal = yd_end + l*sin(thetad_end) + Delta*sin(thetad_end + phid_end);
 
-    % --- CONFIGURAZIONE EKF E LIDAR ---
+    % --- EKF and LIDAR Configuration ---
     P0 = eye(4) * 0.1; % Incertezza iniziale dello stato
     Q_ekf = diag([0.01, 0.01]); % Incertezza odometria (v, omega)
     R_ekf = diag([0.05, 0.02]); % Incertezza sensore LIDAR (distanza, angolo)
@@ -156,12 +148,12 @@ while run_full_simulation
     velocities_d = timeseries([vd.Data(:), omegad.Data(:)], xd.Time);
 
     % =========================================================================
-    % LOOP SECONDARIO: Stessa simulazione, metodo diverso
+    % Secondary Loop: same simulation, different method
     % =========================================================================
     run_same_path = true;
     while run_same_path
         
-        %% =========================================================================
+        % =========================================================================
         %  --- SIMULATION MENU & MANUAL WORKFLOW ---
         %  =========================================================================
 
@@ -183,7 +175,7 @@ while run_full_simulation
         method_folder_names = {'Nominal', 'Eulero', 'RungeKutta', 'EKF'};
         current_method_suffix = method_folder_names{choice};
 
-        % Set localization variable (0 to 3) for Simulink Multiport Switch
+        % Set localization variable for Simulink Multiport Switch
         localization = choice - 1; 
         current_mode_name = mode_list{choice};
 
@@ -197,11 +189,11 @@ while run_full_simulation
         disp(' 4. Return to this MATLAB window and press ENTER to generate plots.');
         disp('======================================================');
 
-        pause; % Ferma lo script
+        pause;
 
         disp('Simulation completed. Generating plots...');
 
-        %% =========================================================================
+        % =========================================================================
         %  --- POST-SIMULATION PLOTS ---
         %  =========================================================================
 
@@ -230,7 +222,7 @@ while run_full_simulation
         % Tracking Error (Euclidean Distance)
         err_dist = sqrt(err_x.^2 + err_y.^2);
 
-        % --- PLOT: STATE ERRORS (Separate Figures) ---
+        % --- PLOT: STATE ERRORS ---
         fig_err_x = figure('Name', ['Error X - ', current_mode_name], 'Color', 'w');
         plot(t_sim, err_x, 'r', 'LineWidth', 1.5);
         title(['\textbf{Error on } $x$ \textbf{ (', current_mode_name, ')}'], 'Interpreter', 'latex', 'FontSize', 14);
@@ -300,7 +292,7 @@ while run_full_simulation
         axis equal;
         grid on;
 
-        %% =========================================================================
+        % =========================================================================
         %  --- SALVATAGGIO PDF DEI GRAFICI ---
         %  =========================================================================
         
@@ -327,10 +319,10 @@ while run_full_simulation
         end
         disp('Salvataggio completato con successo.');
 
-        %% =========================================================================
+        % =========================================================================
         %  --- POST-SIMULATION USER MENU ---
         %  =========================================================================
-        
+
         user_choice = menu('Simulation Completed. what s next?', ...
             'New Simulation (Choose new point on the map)', ...
             'Same simulation, change localization method', ...
@@ -351,7 +343,7 @@ end % End of While run_full_simulation
 
 %% FUNCTIONS ===============================================================
 
-% Function to construct the graph using the RSC method.
+% Graph generation via RSC method.
 function new_points = calculate_points(current_point, current_angle, iteration)
     % Global variables
     global length_step radius_curve num_iterations points counter occupancy_matrix sample_points connections curve_points legend_flag
@@ -449,7 +441,7 @@ function new_points = calculate_points(current_point, current_angle, iteration)
     end
 end
 
-% Function to check if a point has already been visited
+% Check if a point has already been visited
 function visited = is_point_visited(point)
     global occupancy_matrix
     visited = false;
@@ -458,13 +450,13 @@ function visited = is_point_visited(point)
     end
 end
 
-% Function to check if a point is within the limits of the matrix
+% Check if a point is within the limits of the matrix
 function within_bounds = is_within_bounds(point)
     global occupancy_matrix
     within_bounds = point(1) > 0 && point(2) > 0 && point(1) <= size(occupancy_matrix, 1) && point(2) <= size(occupancy_matrix, 2);
 end
 
-% Function to check whether the generated curves have collisions with obstacles (forward motion)
+% Check if the generated curves have collisions with obstacles (forward)
 function collision_forward = is_collision_forward(current_point, end_point_forward)
     global map
     collision_forward = false;
@@ -479,7 +471,7 @@ function collision_forward = is_collision_forward(current_point, end_point_forwa
     end
 end
 
-% Function to check whether the generated curves have collisions with obstacles (curves)
+% Check if the generated curves have collisions with obstacles (curves)
 function collision_curve = is_collision_curve(x, y)
     global map
     collision_curve = false;
@@ -491,7 +483,7 @@ function collision_curve = is_collision_curve(x, y)
     end
 end
 
-% Function to calculate the adjacency matrix having in input the nodes and a vector indicating the connections between the nodes
+% Ajacency Matrix Computation
 function adjacency_matrix = create_adjacency_matrix(nodes, connections)
     num_nodes = size(nodes, 1);
     adjacency_matrix = zeros(num_nodes);
@@ -509,7 +501,7 @@ function adjacency_matrix = create_adjacency_matrix(nodes, connections)
     end
 end
 
-% Find the shortest path using Dijkstra from a start point to an end point
+% Path Search via Dijkstra
 function path = dijkstra(adjacency_matrix, sample_points, Qs, Qg)
     
     start_node = find(ismember(sample_points, Qs, 'rows'), 1);
@@ -521,7 +513,7 @@ function path = dijkstra(adjacency_matrix, sample_points, Qs, Qg)
     [min_dist, goal_node] = min(distances);
     
     if min_dist > 25
-        error('Il punto di GOAL è troppo lontano dai percorsi generati.');
+        error('GOAL Point too far from map.');
     end
     
     num_nodes = size(adjacency_matrix, 1);
@@ -554,7 +546,7 @@ function path = dijkstra(adjacency_matrix, sample_points, Qs, Qg)
     end
     
     if isinf(dist(goal_node)) || isnan(prev(goal_node))
-        error('Impossibile trovare un percorso continuo dallo Start al Goal.');
+        error('Path not found.');
     end
     
     path = [];
@@ -565,7 +557,7 @@ function path = dijkstra(adjacency_matrix, sample_points, Qs, Qg)
     end
 end
 
-% Function to plot the lines between the various nodes and check if it is a curve
+% Plot lines along nodes and check if curve
 function collected_points = plot_path(path, nodes, color)
     global curve_points;
     collected_points = [];
@@ -613,7 +605,7 @@ function index = find_curve_index(start_node, end_node)
     end
 end
 
-% From the smooth path it calculates theta and phi and create desired trajectory
+%% Trajectory computation based on the path
 function [xd, yd, thetad, phid, vd, omegad, q0, T_max, k, landmarks, v_max_ref, omega_max_ref] = des_trajectory(collected_points)
     global map
     num_rows_map = size(map,2);
@@ -627,20 +619,20 @@ function [xd, yd, thetad, phid, vd, omegad, q0, T_max, k, landmarks, v_max_ref, 
     dy = diff(y);
     dist = sqrt(dx.^2 + dy.^2);
     arc_lengths = [0; cumsum(dist)];
-    S_total = arc_lengths(end); % Lunghezza totale del percorso in metri
+    S_total = arc_lengths(end); % Total path lenght (metres)
     
     s_sample = arc_lengths / S_total; 
     
-    % Rimozione eventuali punti doppi per la stabilità dell'interpolazione
+    % Remove eventual double points
     [s_sample, unique_idx] = unique(s_sample, 'stable');
     x = x(unique_idx);
     y = y(unique_idx);
     
     s_meters = s_sample * S_total; % Vettore delle distanze reali in metri
 
-    % --- 2. CALCOLO DELLA CURVATURA GEOMETRICA DELLA STRADA ---
+    % --- 2. Compute path geometric curvature ---
     ds_steps = gradient(s_meters);
-    ds_steps(ds_steps == 0) = 1e-6; % Protezione numerica in caso di divisione per zero
+    ds_steps(ds_steps == 0) = 1e-6;
     
     % Derivate prime rispetto allo spazio
     dx_ds = gradient(x) ./ ds_steps;
@@ -653,28 +645,26 @@ function [xd, yd, thetad, phid, vd, omegad, q0, T_max, k, landmarks, v_max_ref, 
     % Curvatura geometrica: kappa = |x'*y'' - y'*x''| / (x'^2 + y'^2)^1.5
     kappa = abs(dx_ds .* ddy_ds2 - dy_ds .* ddx_ds2) ./ (dx_ds.^2 + dy_ds.^2 + 1e-6).^(1.5);
 
-    % --- 3. GENERAZIONE DEL PROFILO DI VELOCITÀ SULLA GEOMETRIA ---
+    % --- 3. Velocity Profile Generation ---
     v_straight = 2.5; % Velocità massima nei rettilinei (m/s)
     v_curve = 0.6;    % Velocità ridotta nelle curve (m/s)
     
-    % Default: velocità massima ovunque
+    % Default: max velocity
     v_target = ones(size(x)) * v_straight;
     
-    % Dove la curvatura geometrica supera la soglia, imponiamo la velocità da curva
-    % (La curvatura teorica delle tue curve è 1/7 = 0.14, nei rettilinei è 0)
+    % Where the geometric curvature is greather than threshodl apply curve
+    % velocity
     v_target(kappa > 0.04) = v_curve;
     
-    % Condizioni al contorno: il robot deve partire e fermarsi a velocità nulla
+    % Start and End Velocity imposed to 0
     v_target(1) = 0;
     v_target(end) = 0;
 
-    % --- 4. FILTRAGGIO GAUSSIANO ---
-    % Finestra mobile gaussiana (pari al 6% dei punti totali)
-    % smussa i gradini e genera rampe di accelerazione/frenata continue
+    % --- 4. Gaussian Filter ---
     window_size = round(length(x) * 0.06);
     v_smooth = smoothdata(v_target, 'gaussian', window_size);
 
-    % --- RAMPE DI START/STOP A ZERO VERO  ---
+    % ---START/STOP RAMP  ---
     N = length(v_smooth);
     frac_ramp = 0.04;                          % 4% dei punti per ciascuna rampa
     n_ramp = max(round(N * frac_ramp), 5);      % almeno 5 campioni
@@ -707,7 +697,7 @@ function [xd, yd, thetad, phid, vd, omegad, q0, T_max, k, landmarks, v_max_ref, 
     v_smooth(idx_start) = max(v_smooth(idx_start), v_min_start);
     v_smooth(idx_end)   = max(v_smooth(idx_end), v_min_end);
 
-    % --- 5. INTEGRAZIONE NUMERICA PER TRASFORMARE LO SPAZIO IN TEMPO ---
+    % --- 5. NUMERICAL INTEGRTION FROM SPACE TO TIME ---
     % dt = ds / v
     ds_vec = [0; diff(s_meters)];
     dt = zeros(size(x));
@@ -716,9 +706,9 @@ function [xd, yd, thetad, phid, vd, omegad, q0, T_max, k, landmarks, v_max_ref, 
         dt(i) = ds_vec(i) / v_avg;
     end
     t_profile = cumsum(dt);
-    tf = t_profile(end); % tempo finale ricavato analiticamente!
+    tf = t_profile(end); % final time
 
-    % --- 6. CAMPIONAMENTO TEMPORALE UNIFORME ---
+    % --- 6. Uniform Sampling ---
     T = linspace(0, tf, 10000);
     x_t = interp1(t_profile, x, T, 'pchip');
     y_t = interp1(t_profile, y, T, 'pchip');
@@ -748,12 +738,12 @@ function [xd, yd, thetad, phid, vd, omegad, q0, T_max, k, landmarks, v_max_ref, 
     phi(indici_fermo) = 0;
     omega(indici_fermo) = 0;
 
-    % --- 6bis. CHIUSURA ESATTA A V=0 IN TESTA E IN CODA (raised-cosine, C1) ---
+    % --- 6bis. START AND END VELOCITY V=0 (raised-cosine) ---
     Nv = length(v);
     n_close = max(round(Nv * 0.01), 5);   % 1% dei campioni, almeno 5
     n_close = min(n_close, floor(Nv/2)-1);
 
-    close_blend = ones(1, Nv);   % vettore RIGA, coerente con v e omega (1xNv)
+    close_blend = ones(1, Nv);  
     i0 = (1:n_close);
     close_blend(i0) = 0.5 * (1 - cos(pi * (i0 - 1) / (n_close - 1)));
     i1 = (Nv-n_close+1:Nv);
@@ -765,9 +755,10 @@ function [xd, yd, thetad, phid, vd, omegad, q0, T_max, k, landmarks, v_max_ref, 
     % Forza l'esatto azzeramento al primo e ultimo campione
     v(1) = 0;  v(end) = 0;
     omega(1) = 0; omega(end) = 0;
-
+    
+    %% UNIFORM SCALING
     v_max = 3;         
-    omega_max = 2.0; % Lasciamo sbloccato lo sterzo
+    omega_max = 2.0;
     
     v_peak = max(abs(v));
     omega_peak = max(abs(omega));
@@ -787,7 +778,7 @@ function [xd, yd, thetad, phid, vd, omegad, q0, T_max, k, landmarks, v_max_ref, 
         T_new = T;
     end
     
-    % --- GENERAZIONE AUTOMATICA DEI LANDMARKS ---
+    % --- AUTOMATIC LANDMARKS GENERATION ---
     num_landmarks = 8; 
     idx_lm = round(linspace(1, length(x_t), num_landmarks));
     landmarks = zeros(num_landmarks, 2);
