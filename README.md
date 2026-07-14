@@ -91,8 +91,8 @@ Pipeline:
 ## Installation
 
 ```bash
-git clone https://github.com/yourusername/car-like-robot-navigation.git
-cd car-like-robot-navigation
+git clone https://github.com/Nicholasr567/TechnicalProject_FSR.git
+cd TechnicalProject_FSR
 ```
 
 ---
