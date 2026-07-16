@@ -1,6 +1,12 @@
-# Car-Like Robot Path Planning, Tracking and Localization
+# Autonomous Vehicle Planning & Tracking
 
-A MATLAB/Simulink project for **path planning**, **trajectory generation**, **feedback linearization control**, and **state estimation** for a nonholonomic car-like robot.
+[![MATLAB](https://img.shields.io/badge/MATLAB-R202x-blue?logo=mathworks)](https://www.mathworks.com/)
+[![Simulink](https://img.shields.io/badge/Simulink-Enabled-orange?logo=mathworks)](https://www.mathworks.com/products/simulink.html)
+[![License](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
+
+A complete MATLAB/Simulink pipeline for **path planning**, **trajectory generation**, **feedback linearization control**, and **state estimation** of a nonholonomic car-like robot. 
+
+Designed to demonstrate a full autonomous navigation stack, from high-level graph-based planning to low-level continuous-time control and robust localization.
 
 This repository implements:
 - Graph-based planning using motion primitives inspired by Reeds-Shepp curves
